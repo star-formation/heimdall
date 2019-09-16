@@ -1,3 +1,3 @@
 # heimdall
 
-Argo Navis golang utils for websocket.
+golang utils for websocket.
