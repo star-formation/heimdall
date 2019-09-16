@@ -1,3 +1,3 @@
 # heimdall
 
-Argo Navis golang backend node.
+Argo Navis golang utils for websocket.
