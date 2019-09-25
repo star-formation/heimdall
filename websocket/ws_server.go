@@ -53,42 +53,36 @@ func getHTTPHandler(protocolHandler func([]byte) ([]byte, error)) func(w http.Re
 			return
 		}
 
-		for {
-			log.Info("waiting on c.ReadMessage: ")
-			mt, msg, err := c.ReadMessage()
-			if err != nil {
-				log.Error("read:", "err", err)
-				break
-			}
-			log.Info("recv: ", "msg", msg)
-
-			// setup MessageBus sub to engine loop
+		// setup MessageBus sub to engine loop
+		go func() {
 			ch := tesseract.S.MB.Subscribe()
-			go func() {
-				for {
-					stateJSON := <-ch
-					err = c.WriteMessage(mt, stateJSON)
-					if err != nil {
-						log.Error("write err:", "err", err)
-						break
-					}
-				}
-			}()
-
-			/*
-				resp, err := protocolHandler(msg)
-				if err != nil {
-					log.Error("protocolHandler", "err", err)
-					WriteControlClose(c, websocket.CloseProtocolError, err.Error())
-				}
-
-				//log.Debug("c.WriteMessage", "resp", resp)
-				err = c.WriteMessage(mt, resp)
+			for {
+				stateJSON := <-ch
+				err = c.WriteMessage(websocket.BinaryMessage, stateJSON)
 				if err != nil {
 					log.Error("write err:", "err", err)
 					break
 				}
-			*/
+			}
+		}()
+
+		for {
+			log.Info("waiting on c.ReadMessage: ")
+			_, msg, err := c.ReadMessage()
+			if err != nil {
+				log.Error("read:", "err", err)
+				break
+			}
+			//log.Info("recv: ", "mt", mt, "msg", msg)
+
+			// handle action
+			err = tesseract.HandleMsg(msg)
+			if err != nil {
+				log.Error("tesseract.HandleMsg", "err", err)
+				log.Info("Closing websocket conn")
+				WriteControlClose(c, websocket.CloseInternalServerErr, err.Error())
+				return
+			}
 		}
 	}
 }
